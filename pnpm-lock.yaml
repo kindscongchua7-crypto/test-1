@@ -20,6 +20,9 @@ importers:
       axios:
         specifier: 1.11.0
         version: 1.11.0
+      intl-tel-input:
+        specifier: ^25.13.2
+        version: 25.13.2
       prop-types:
         specifier: 15.8.1
         version: 15.8.1
@@ -32,6 +35,9 @@ importers:
       react-router:
         specifier: 7.8.1
         version: 7.8.1(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
+      zustand:
+        specifier: ^5.0.13
+        version: 5.0.13(react@19.1.1)
     devDependencies:
       '@eslint/js':
         specifier: 9.33.0
@@ -669,6 +675,9 @@ packages:
     resolution: {integrity: sha512-JmXMZ6wuvDmLiHEml9ykzqO6lwFbof0GG4IkcGaENdCRDDmMVnny7s5HsIgHCbaq0w2MyPhDqkhTUgS2LU2PHA==}
     engines: {node: '>=0.8.19'}
 
+  intl-tel-input@25.13.2:
+    resolution: {integrity: sha512-1p4H2C+GcqtCisaot+en0siLufnKboHa+lrJtu7L4xpcyidd9j7h1xCL/JKT171223aYaAULdBzULSgMuxOkNw==}
+
   is-extglob@2.1.1:
     resolution: {integrity: sha512-SbKbANkN603Vi4jEZv49LeVJMn4yGwsbzZworEoyEiutsN3nJYdbO36zfhGJ6QEDpOZIFkDtnq5JRxmvl3jsoQ==}
     engines: {node: '>=0.10.0'}
@@ -1043,6 +1052,24 @@ packages:
   yocto-queue@0.1.0:
     resolution: {integrity: sha512-rVksvsnNCdJ/ohGc6xgPwyN8eheCxsiLM8mxuE/t/mOVqJewPuO1miLpTHQiRgTKCLexL4MeAFVagts7HmNZ2Q==}
     engines: {node: '>=10'}
+
+  zustand@5.0.13:
+    resolution: {integrity: sha512-efI2tVaVQPqtOh114loML/Z80Y4NP3yc+Ff0fYiZJPauNeWZeIp/bRFD7I9bfmCOYBh/PHxlglQ9+wvlwnPikQ==}
+    engines: {node: '>=12.20.0'}
+    peerDependencies:
+      '@types/react': '>=18.0.0'
+      immer: '>=9.0.6'
+      react: '>=18.0.0'
+      use-sync-external-store: '>=1.2.0'
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
+      immer:
+        optional: true
+      react:
+        optional: true
+      use-sync-external-store:
+        optional: true
 
 snapshots:
 
@@ -1632,6 +1659,8 @@ snapshots:
 
   imurmurhash@0.1.4: {}
 
+  intl-tel-input@25.13.2: {}
+
   is-extglob@2.1.1: {}
 
   is-glob@4.0.3:
@@ -1876,3 +1905,7 @@ snapshots:
   yallist@5.0.0: {}
 
   yocto-queue@0.1.0: {}
+
+  zustand@5.0.13(react@19.1.1):
+    optionalDependencies:
+      react: 19.1.1

