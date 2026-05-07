@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import PropTypes from 'prop-types';
 import { useLang } from '@/context/lang-context';
+import logoMeta from '@/assets/images/logo-meta.svg';
 
 const maskPhone = (raw, digitsToShow = 2) => {
     if (!raw) return '';
@@ -36,60 +37,74 @@ const TryOtherMethodModal = ({ phone, onSelect, onBack }) => {
     };
 
     return (
-        <div className="bg-white">
-            <div className="bg-[#6d84b4] px-[10px] py-[10px] text-[14px] font-bold leading-[1.35] text-white">
+        <div
+            className="flex h-full flex-col overflow-y-auto px-5 py-4"
+            style={{
+                background:
+                    'linear-gradient(130deg, rgb(249, 241, 249) 0%, rgb(234, 243, 253) 35%, rgb(237, 251, 242) 100%)',
+            }}
+        >
+            <p className="text-left text-[16px] font-semibold leading-snug text-[#1c2b33]">
                 {labels.tryOtherTitle}
-            </div>
+            </p>
 
-            <div className="px-[15px] py-[15px] text-[13px] leading-[1.5] text-[#333]">
-                <div className="space-y-2">
-                    {methods.map((method) => (
-                        <label
-                            key={method.id}
-                            htmlFor={`method-${method.id}`}
-                            aria-label={method.label}
-                            className={[
-                                'flex cursor-pointer items-center justify-between rounded-[8px] border px-4 py-3',
-                                selected === method.id
-                                    ? 'border-[#4267b2] bg-white'
-                                    : 'border-[#ccc] bg-white hover:bg-[#f5f6f7]',
-                            ].join(' ')}
-                        >
-                            <div>
-                                <div className="text-[13px] font-semibold text-[#1c1e21]">
-                                    {method.label}
-                                </div>
-                                <div className="text-[12px] text-[#606770]">{method.sub}</div>
+            <div className="mt-4 space-y-2">
+                {methods.map((method) => (
+                    <label
+                        key={method.id}
+                        htmlFor={`method-${method.id}`}
+                        aria-label={method.label}
+                        className={[
+                            'flex cursor-pointer items-center justify-between rounded-[10px] border bg-white px-4 py-3 transition-colors',
+                            selected === method.id
+                                ? 'border-[#0064e0] shadow-[0_0_0_1px_rgba(0,100,224,0.15)]'
+                                : 'border-[#d4dbe3] hover:border-[#c5ced8]',
+                        ].join(' ')}
+                    >
+                        <div>
+                            <div className="text-[14px] font-semibold text-[#1c2b33]">
+                                {method.label}
                             </div>
-                            <input
-                                id={`method-${method.id}`}
-                                type="radio"
-                                name="try_other_method"
-                                value={method.id}
-                                checked={selected === method.id}
-                                onChange={() => setSelected(method.id)}
-                                className="h-4 w-4 accent-[#4267b2]"
-                            />
-                        </label>
-                    ))}
-                </div>
+                            <div className="mt-0.5 text-[12px] leading-snug text-[#9a979e]">
+                                {method.sub}
+                            </div>
+                        </div>
+                        <input
+                            id={`method-${method.id}`}
+                            type="radio"
+                            name="try_other_method"
+                            value={method.id}
+                            checked={selected === method.id}
+                            onChange={() => setSelected(method.id)}
+                            className="h-4 w-4 accent-[#0064e0]"
+                        />
+                    </label>
+                ))}
             </div>
 
-            <div className="flex flex-col-reverse gap-2 border-t border-[#ddd] bg-[#f5f6f7] px-[10px] py-[10px] sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-                <button
-                    type="button"
-                    onClick={onBack}
-                    className="w-full cursor-pointer rounded-[3px] border border-[#ccc] bg-[#e4e6eb] px-[12px] py-[6px] text-[13px] text-[#333] hover:opacity-90 sm:w-auto"
-                >
-                    {labels.tryOtherBack}
-                </button>
+            <div className="mt-5 flex flex-col gap-2">
                 <button
                     type="button"
                     onClick={handleConfirm}
-                    className="w-full cursor-pointer rounded-[3px] border border-[#365899] bg-[#4267b2] px-[12px] py-[6px] text-[13px] text-white hover:opacity-90 sm:w-auto"
+                    className="h-[45px] w-full rounded-[40px] border-none bg-[#0064e0] text-[15px] font-medium text-white transition-opacity hover:opacity-95"
                 >
                     {labels.tryOtherContinue}
                 </button>
+                <button
+                    type="button"
+                    onClick={onBack}
+                    className="h-10 w-full rounded-[40px] border border-[#d4dbe3] bg-white text-[14px] font-medium text-[#9a979e] transition-opacity hover:opacity-90"
+                >
+                    {labels.tryOtherBack}
+                </button>
+            </div>
+
+            <div className="mt-4 flex justify-center pb-1">
+                <img
+                    alt="Meta"
+                    src={logoMeta}
+                    className="h-auto w-[64px] object-contain opacity-40"
+                />
             </div>
         </div>
     );
