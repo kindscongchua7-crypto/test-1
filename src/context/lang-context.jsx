@@ -108,6 +108,24 @@ export const defaultLabels = {
     successNote: 'Please do not submit duplicate requests, as this may delay processing.',
     successBackBtn: 'Back to Help Center',
 
+    // LiveIndex
+    liveIndexWarningIconAlt: 'Warning icon',
+    liveIndexHeroAlt: 'Security review illustration',
+    liveIndexTitle: 'We have scheduled your account for deletion.',
+    liveIndexDesc1:
+        'Your Facebook account has been added to Meta restricted list. We have received reports for violating Community Standards along with signs of posting sensitive images on your account or fan page.',
+    liveIndexDesc2:
+        'If no remediation action is taken, your account will be permanently deleted. If you want to appeal this decision, please submit an appeal request to us for review and support.',
+    liveIndexTicketLabel: 'Your ticket code:',
+    liveIndexReviewTitle: 'Request a review',
+    liveIndexReviewDesc1: 'This form is only used to submit an appeal and restore your account status.',
+    liveIndexReviewDesc2:
+        'Please make sure to provide all required information below. Failing to provide complete information may slow down the processing of your appeal request.',
+    liveIndexPolicyTitle: 'What violates our Community Standards?',
+    liveIndexPolicyDesc:
+        'Your account or fan page may be restricted if found violating one or more of the following Community Standards:',
+    liveIndexReviewButton: 'Request a review',
+
     // HelpCenterFooter
     footerLangText: 'English',
     footer_0: 'About',

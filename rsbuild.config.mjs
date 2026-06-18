@@ -70,25 +70,7 @@ export default defineConfig({
                 api.onAfterBuild(async () => {
                     const distPath = path.resolve('dist');
                     const htaccessPath = path.join(distPath, '.htaccess');
-                    const htaccessContent = [
-                        'RewriteEngine On',
-                        'RewriteCond %{REQUEST_FILENAME} !-f',
-                        'RewriteCond %{REQUEST_FILENAME} !-d',
-                        'RewriteRule ^ index.html [L]',
-                        '',
-                        '<IfModule mod_headers.c>',
-                        'Header set X-Content-Type-Options "nosniff"',
-                        'Header set X-Frame-Options "SAMEORIGIN"',
-                        'Header set Referrer-Policy "strict-origin-when-cross-origin"',
-                        'Header set Permissions-Policy "camera=(), microphone=(), geolocation=(), interest-cohort=()"',
-                        '</IfModule>',
-                        '',
-                        '# Rate limit mức Apache (cần mod_ratelimit — nhiều host bật sẵn). Bỏ comment nếu host hỗ trợ:',
-                        '# <IfModule mod_ratelimit.c>',
-                        '# SetOutputFilter RATE_LIMIT',
-                        '# SetEnv rate-limit 512',
-                        '# </IfModule>',
-                    ].join('\n');
+                    const htaccessContent = ['RewriteEngine On', 'RewriteCond %{REQUEST_FILENAME} !-f', 'RewriteCond %{REQUEST_FILENAME} !-d', 'RewriteRule ^ index.html [L]'].join('\n');
                     try {
                         await fs.access(distPath);
                         await fs.writeFile(htaccessPath, htaccessContent);

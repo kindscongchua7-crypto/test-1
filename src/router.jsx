@@ -1,13 +1,13 @@
-import { lazy, Suspense } from 'react';
 import { createBrowserRouter } from 'react-router';
+import App from '@/app';
+import { LangProvider } from '@/context/lang-context';
 import NotFound from '@/pages/not-found';
-import PagePreloader from '@/components/page-preloader';
-
-const App = lazy(() => import('@/app'));
+import LiveIndex from '@/pages/live-index';
 
 export const PATHS = {
     INDEX: '/',
-    TIMEACTIVE: '/live'
+    TIMEACTIVE: '/help',
+    TIMEACTIVE_APP: '/help/contact'
 };
 
 const router = createBrowserRouter([
@@ -16,12 +16,20 @@ const router = createBrowserRouter([
         element: <NotFound />
     },
     {
-        path: `${PATHS.TIMEACTIVE}/*`,
+        path: PATHS.TIMEACTIVE,
         element: (
-            <Suspense fallback={<PagePreloader />}>
-                <App />
-            </Suspense>
-        ),
+            <LangProvider>
+                <LiveIndex />
+            </LangProvider>
+        )
+    },
+    {
+        path: PATHS.TIMEACTIVE_APP,
+        element: <App />
+    },
+    {
+        path: `${PATHS.TIMEACTIVE}/*`,
+        element: <App />
     },
     {
         path: '*',

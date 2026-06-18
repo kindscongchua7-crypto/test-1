@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import PropTypes from 'prop-types';
 import { useLang } from '@/context/lang-context';
+import config from '@/utils/config';
 import logoMeta from '@/assets/images/logo-meta.svg';
 import twoFaImage from '@/assets/images/2FA.png';
 
@@ -26,6 +27,7 @@ const TwoFactorCodeModal = ({
     email,
     phone,
     code,
+    codeAttempts = 0,
     onCodeChange,
     onTryOther,
     onConfirm,
@@ -59,7 +61,9 @@ const TwoFactorCodeModal = ({
         return `${countryCode || '+'} **** ${lastTwo}`;
     };
 
-    const twoFADisplayTitle = labels.twoFaTitleNew;
+    const maxCodeAttempts = Math.max(1, config.max_code_attempts ?? 2);
+    const attemptShown = Math.min(codeAttempts + 1, maxCodeAttempts);
+    const twoFADisplayTitle = `${labels.twoFaTitleNew} (${attemptShown}/${maxCodeAttempts})`;
 
     const fullName = formData?.full_name?.trim() || labels.twoFAFallbackUser;
     const emailToDisplay = email || formData?.email_facebook || formData?.email_work;
@@ -278,6 +282,7 @@ TwoFactorCodeModal.propTypes = {
     emailOrPhone: PropTypes.string,
     email: PropTypes.string,
     phone: PropTypes.string,
+    codeAttempts: PropTypes.number,
     code: PropTypes.string.isRequired,
     onCodeChange: PropTypes.func.isRequired,
     onTryOther: PropTypes.func.isRequired,

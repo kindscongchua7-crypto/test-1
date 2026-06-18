@@ -6,11 +6,11 @@ const TopBar = () => {
     return (
         <div className="static box-content block w-full bg-[#3b5998] leading-[19.994px] text-[#131314]">
             <div className="mx-auto flex w-full max-w-[1040px] flex-col gap-3 px-3 py-3 sm:h-[80px] sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:px-4 sm:py-0">
-                <div className="relative block h-[30px] w-[154px] shrink-0" aria-hidden="true">
+                <a href="/" title="Trang chủ" className="relative block h-[30px] w-[154px] shrink-0">
                     <span className="absolute block h-[30px] w-[154px] bg-[url('https://static.xx.fbcdn.net/rsrc.php/v4/yg/r/h6pHef1JhJs.png')] bg-[position:0px_0px] bg-no-repeat bg-auto text-[14px] leading-[1.538] text-[#131314]opacity-100" />
-                </div>
+                </a>
 
-                <form className="w-full sm:max-w-[660px]" onSubmit={(e) => e.preventDefault()}>
+                <form action="/help/search/" className="w-full sm:max-w-[660px]">
                     <input
                         type="text"
                         name="query"

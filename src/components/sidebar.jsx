@@ -31,9 +31,12 @@ const Sidebar = () => {
             <div className={`${isMobileOpen ? 'block' : 'hidden'} lg:block`}>
                 {helpCenterLinks.map((item, i) => (
                     <div key={item.href}>
-                        <span className="inline-block rounded-sm px-1 py-[2px] text-[14px] font-normal leading-[22px] text-[#1d2129] transition-colors hover:bg-[#e4e6eb]">
+                        <a
+                            className="inline-block rounded-sm px-1 py-[2px] text-[14px] font-normal leading-[22px] text-[#1d2129] no-underline transition-colors hover:bg-[#e4e6eb] hover:no-underline"
+                            href={item.href}
+                        >
                             {labels[`sidebar_${i}`] || item.label}
-                        </span>
+                        </a>
                     </div>
                 ))}
             </div>

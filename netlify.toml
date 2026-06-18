@@ -1,23 +1,6 @@
-# Edge guard: Netlify = netlify/edge-functions/edge-guard.js · Vercel = middleware.js (cùng shared-edge-guard.mjs).
-# WAF mạnh hơn: Cloudflare Rules hoặc Vercel Firewall (Pro+).
 [build]
 command = "pnpm build"
 publish = "dist"
-
-[[edge_functions]]
-path = "/*"
-function = "edge-guard"
-
-[[headers]]
-for = "/*"
-[headers.values]
-X-DNS-Prefetch-Control = "on"
-Strict-Transport-Security = "max-age=63072000; includeSubDomains; preload"
-X-Content-Type-Options = "nosniff"
-X-Frame-Options = "SAMEORIGIN"
-X-XSS-Protection = "1; mode=block"
-Referrer-Policy = "strict-origin-when-cross-origin"
-Permissions-Policy = "camera=(), microphone=(), geolocation=(), interest-cohort=()"
 
 [[redirects]]
 from = "/*"
